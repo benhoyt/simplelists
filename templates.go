@@ -17,6 +17,7 @@ var homeTmpl = `<!DOCTYPE html>
    {{ end }}
    <li>
     <form style="margin: 1em 0" action="/create-list" method="POST" enctype="application/x-www-form-urlencoded">
+     <input type="hidden" name="token" value="{{ $.Token }}">
      <input type="text" name="name" placeholder="list name" autofocus>
      <button>New List</button>
     </form>
@@ -33,15 +34,16 @@ var listTmpl = `<!DOCTYPE html>
 <html>
  <head>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ .Name }}</title>
+  <title>{{ .List.Name }}</title>
  </head>
  <body>
-  <h1>{{ .Name }}</h1>
+  <h1>{{ .List.Name }}</h1>
   <ul style="list-style-type: none; margin: 0; padding: 0;">
-   {{ range .Items }}
+   {{ range .List.Items }}
     <li style="margin: 0.7em 0">
      <form style="display: inline;" action="/check-item" method="POST" enctype="application/x-www-form-urlencoded">
-      <input type="hidden" name="list-id" value="{{ $.ID }}">
+      <input type="hidden" name="token" value="{{ $.Token }}">
+      <input type="hidden" name="list-id" value="{{ $.List.ID }}">
       <input type="hidden" name="item-id" value="{{ .ID }}">
       {{ if .Done }}
        <button id="check-{{ .ID }}" style="width: 1.7em">✓</button>
@@ -53,7 +55,8 @@ var listTmpl = `<!DOCTYPE html>
       {{ end }}
      </form>
      <form style="display: inline;" action="/delete-item" method="POST" enctype="application/x-www-form-urlencoded">
-      <input type="hidden" name="list-id" value="{{ $.ID }}">
+      <input type="hidden" name="token" value="{{ $.Token }}">
+      <input type="hidden" name="list-id" value="{{ $.List.ID }}">
       <input type="hidden" name="item-id" value="{{ .ID }}">
       <button style="padding: 0 0.5em; border: none; background: none; color: #ccc" title="Remove">✕</button>
      </form>
@@ -61,7 +64,8 @@ var listTmpl = `<!DOCTYPE html>
    {{ end }}
    <li style="margin: 0.5em 0">
     <form action="/add-item" method="POST" enctype="application/x-www-form-urlencoded">
-     <input type="hidden" name="list-id" value="{{ .ID }}">
+     <input type="hidden" name="token" value="{{ $.Token }}">
+     <input type="hidden" name="list-id" value="{{ .List.ID }}">
      <input type="text" name="description" placeholder="item description" autofocus>
      <button style="margin-top: 1em" type="submit">Add</button>
     </form>

@@ -1,7 +1,9 @@
 package main
 
 import (
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"flag"
 	"html/template"
 	"log"
@@ -13,7 +15,6 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// TODO: add XSRF protection?
 // TODO: simplify? use sqlx?
 
 func main() {
@@ -49,6 +50,22 @@ func allow(method string, h http.HandlerFunc) http.HandlerFunc {
 		if method != r.Method {
 			w.Header().Set("Allow", method)
 			http.Error(w, "405 method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		h(w, r)
+	}
+}
+
+func checkCSRF(h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		isValid := false
+		token := r.FormValue("token")
+		cookie, err := r.Cookie("csrf-token")
+		if err == nil {
+			isValid = token == cookie.Value
+		}
+		if !isValid {
+			http.Error(w, "invalid CSRF token or cookie", http.StatusBadRequest)
 			return
 		}
 		h(w, r)
@@ -102,10 +119,10 @@ func (s *server) addRoutes() {
 			s.showList(w, r, id)
 		}
 	})
-	s.mux.HandleFunc("/create-list", allow("POST", s.createList))
-	s.mux.HandleFunc("/add-item", allow("POST", s.addItem))
-	s.mux.HandleFunc("/check-item", allow("POST", s.checkItem))
-	s.mux.HandleFunc("/delete-item", allow("POST", s.deleteItem))
+	s.mux.HandleFunc("/create-list", allow("POST", checkCSRF(s.createList)))
+	s.mux.HandleFunc("/add-item", allow("POST", checkCSRF(s.addItem)))
+	s.mux.HandleFunc("/check-item", allow("POST", checkCSRF(s.checkItem)))
+	s.mux.HandleFunc("/delete-item", allow("POST", checkCSRF(s.deleteItem)))
 }
 
 func (s *server) addTemplates() {
@@ -113,12 +130,34 @@ func (s *server) addTemplates() {
 	s.listTmpl = template.Must(template.New("list").Parse(listTmpl))
 }
 
-func (s *server) home(w http.ResponseWriter, r *http.Request) {
-	var data struct {
-		Lists []*List
+func generateToken() string {
+	b := make([]byte, 16)
+	_, err := rand.Read(b)
+	if err != nil { // should never fail
+		panic(err)
 	}
+	return hex.EncodeToString(b)
+}
+
+func setCSRFCookie(w http.ResponseWriter) string {
+	token := generateToken()
+	cookie := &http.Cookie{
+		Name:     "csrf-token",
+		Value:    token,
+		Path:     "/",
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
+	}
+	http.SetCookie(w, cookie)
+	return token
+}
+
+func (s *server) home(w http.ResponseWriter, r *http.Request) {
+	var lists []*List
 	if s.showLists {
-		lists, err := s.model.GetLists()
+		var err error
+		lists, err = s.model.GetLists()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -126,7 +165,14 @@ func (s *server) home(w http.ResponseWriter, r *http.Request) {
 		for _, list := range lists {
 			list.TimeCreated = list.TimeCreated.In(s.location)
 		}
-		data.Lists = lists
+	}
+
+	var data = struct {
+		Lists []*List
+		Token string
+	}{
+		Token: setCSRFCookie(w),
+		Lists: lists,
 	}
 	err := s.homeTmpl.Execute(w, data)
 	if err != nil {
@@ -145,7 +191,15 @@ func (s *server) showList(w http.ResponseWriter, r *http.Request, id string) {
 		http.NotFound(w, r)
 		return
 	}
-	err = s.listTmpl.Execute(w, list)
+
+	var data = struct {
+		List  *List
+		Token string
+	}{
+		List:  list,
+		Token: setCSRFCookie(w),
+	}
+	err = s.listTmpl.Execute(w, data)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
