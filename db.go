@@ -68,10 +68,7 @@ func (m *sqlModel) GetLists() ([]*List, error) {
 		}
 		lists = append(lists, &list)
 	}
-	if rows.Err() != nil {
-		return nil, rows.Err()
-	}
-	return lists, nil
+	return lists, rows.Err()
 }
 
 var idChars = "bcdfghjklmnpqrstvwxyz" // just consonants to avoid spelling words
@@ -112,12 +109,8 @@ func (m *sqlModel) GetList(id string) (*List, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	list.Items, err = m.getListItems(id)
-	if err != nil {
-		return nil, err
-	}
-	return &list, nil
+	return &list, err
 }
 
 func (m *sqlModel) getListItems(listID string) ([]*Item, error) {
@@ -141,10 +134,7 @@ func (m *sqlModel) getListItems(listID string) ([]*Item, error) {
 		}
 		items = append(items, &item)
 	}
-	if rows.Err() != nil {
-		return nil, rows.Err()
-	}
-	return items, nil
+	return items, rows.Err()
 }
 
 func (m *sqlModel) AddItem(listID, description string) (*Item, error) {
