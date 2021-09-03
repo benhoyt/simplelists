@@ -102,26 +102,15 @@ func (m *sqlModel) CreateList(name string) (*List, error) {
 }
 
 func (m *sqlModel) GetList(id string) (*List, error) {
-	rows, err := m.db.Query(`
+	row := m.db.QueryRow(`
 		SELECT id, name
 		FROM lists
 		WHERE id = ?
 		`, id)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	if !rows.Next() {
-		return nil, nil
-	}
 	var list List
-	err = rows.Scan(&list.ID, &list.Name)
+	err := row.Scan(&list.ID, &list.Name)
 	if err != nil {
 		return nil, err
-	}
-	if rows.Err() != nil {
-		return nil, rows.Err()
 	}
 
 	list.Items, err = m.getListItems(id)
