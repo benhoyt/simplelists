@@ -31,7 +31,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	s, err := newServer(model, *timezone, *showLists)
 	if err != nil {
 		log.Fatal(err)
@@ -137,16 +136,16 @@ func (s *server) home(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) showList(w http.ResponseWriter, r *http.Request, id string) {
-	lst, err := s.model.GetList(id)
+	list, err := s.model.GetList(id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	if lst == nil {
+	if list == nil {
 		http.NotFound(w, r)
 		return
 	}
-	err = s.listTmpl.Execute(w, lst)
+	err = s.listTmpl.Execute(w, list)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -159,32 +158,36 @@ func (s *server) createList(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
-	lst, err := s.model.CreateList(name)
+	list, err := s.model.CreateList(name)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(w, r, "/"+lst.ID, http.StatusFound)
+	http.Redirect(w, r, "/"+list.ID, http.StatusFound)
 }
 
 func (s *server) addItem(w http.ResponseWriter, r *http.Request) {
 	listID := r.FormValue("list-id")
-	lst, err := s.model.GetList(listID)
+	list, err := s.model.GetList(listID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if list == nil {
+		http.NotFound(w, r)
 		return
 	}
 	description := strings.TrimSpace(r.FormValue("description"))
 	if description == "" {
-		http.Redirect(w, r, "/"+lst.ID, http.StatusFound)
+		http.Redirect(w, r, "/"+list.ID, http.StatusFound)
 		return
 	}
-	_, err = s.model.AddItem(lst.ID, description)
+	_, err = s.model.AddItem(list.ID, description)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(w, r, "/"+lst.ID, http.StatusFound)
+	http.Redirect(w, r, "/"+list.ID, http.StatusFound)
 }
 
 func (s *server) checkItem(w http.ResponseWriter, r *http.Request) {
