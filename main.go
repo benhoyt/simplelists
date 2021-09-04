@@ -20,19 +20,19 @@ func main() {
 	flag.Parse()
 
 	db, err := sql.Open("sqlite", *dbPath)
-	if err != nil {
-		log.Fatal(err)
-	}
+	exitOnError(err)
 	model, err := newSQLModel(db)
-	if err != nil {
-		log.Fatal(err)
-	}
+	exitOnError(err)
 	s, err := newServer(model, *timezone, *showLists)
-	if err != nil {
-		log.Fatal(err)
-	}
+	exitOnError(err)
 
 	log.Printf("listening on port %d", *port)
 	err = http.ListenAndServe(":"+strconv.Itoa(*port), s)
-	log.Fatal(err)
+	exitOnError(err)
+}
+
+func exitOnError(err error) {
+	if err != nil {
+		log.Fatal(err)
+	}
 }

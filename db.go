@@ -82,20 +82,13 @@ func (m *sqlModel) makeID(n int) string {
 	return string(id)
 }
 
-func (m *sqlModel) CreateList(name string) (*List, error) {
+func (m *sqlModel) CreateList(name string) (string, error) {
 	id := m.makeID(10)
 	_, err := m.db.Exec(`
 		INSERT INTO lists (id, name)
 		VALUES (?, ?)
 		`, id, name)
-	if err != nil {
-		return nil, err
-	}
-	list := &List{
-		ID:   id,
-		Name: name,
-	}
-	return list, nil
+	return id, err
 }
 
 func (m *sqlModel) GetList(id string) (*List, error) {
@@ -137,23 +130,19 @@ func (m *sqlModel) getListItems(listID string) ([]*Item, error) {
 	return items, rows.Err()
 }
 
-func (m *sqlModel) AddItem(listID, description string) (*Item, error) {
+func (m *sqlModel) AddItem(listID, description string) (string, error) {
 	result, err := m.db.Exec(`
 		INSERT INTO items (list_id, description)
 		VALUES (?, ?)
 		`, listID, description)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	id, err := result.LastInsertId()
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	item := &Item{
-		ID:          strconv.Itoa(int(id)),
-		Description: description,
-	}
-	return item, nil
+	return strconv.Itoa(int(id)), nil
 }
 
 func (m *sqlModel) CheckItem(listID, itemID string, done bool) error {

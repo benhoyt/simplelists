@@ -6,29 +6,16 @@ import (
 	"net/http"
 )
 
-// allow wraps the given handler in a handler that only responds if the
-// request method is the given method, otherwise it responds with HTTP 405
-// Method Not Allowed.
-func allow(method string, h http.HandlerFunc) http.HandlerFunc {
+func csrfPost(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if method != r.Method {
-			w.Header().Set("Allow", method)
+		if r.Method != "POST" {
+			w.Header().Set("Allow", "POST")
 			http.Error(w, "405 method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		h(w, r)
-	}
-}
-
-func checkCSRF(h http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		isValid := false
 		token := r.FormValue("csrf-token")
 		cookie, err := r.Cookie("csrf-token")
-		if err == nil {
-			isValid = token == cookie.Value
-		}
-		if !isValid {
+		if err != nil || token != cookie.Value {
 			http.Error(w, "invalid CSRF token or cookie", http.StatusBadRequest)
 			return
 		}

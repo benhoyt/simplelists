@@ -51,14 +51,13 @@ func (s *server) addRoutes() {
 			s.home(w, r)
 		} else {
 			// GET /{list-id}
-			id := r.URL.Path[1:]
-			s.showList(w, r, id)
+			s.showList(w, r, r.URL.Path[1:])
 		}
 	})
-	s.mux.HandleFunc("/create-list", allow("POST", checkCSRF(s.createList)))
-	s.mux.HandleFunc("/add-item", allow("POST", checkCSRF(s.addItem)))
-	s.mux.HandleFunc("/check-item", allow("POST", checkCSRF(s.checkItem)))
-	s.mux.HandleFunc("/delete-item", allow("POST", checkCSRF(s.deleteItem)))
+	s.mux.HandleFunc("/create-list", csrfPost(s.createList))
+	s.mux.HandleFunc("/add-item", csrfPost(s.addItem))
+	s.mux.HandleFunc("/check-item", csrfPost(s.checkItem))
+	s.mux.HandleFunc("/delete-item", csrfPost(s.deleteItem))
 }
 
 func (s *server) addTemplates() {
@@ -76,13 +75,14 @@ func (s *server) home(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		for _, list := range lists {
+			// Change UTC timezone to display timezone
 			list.TimeCreated = list.TimeCreated.In(s.location)
 		}
 	}
 
 	var data = struct {
-		Lists []*List
 		Token string
+		Lists []*List
 	}{
 		Token: setCSRFCookie(w),
 		Lists: lists,
@@ -106,11 +106,11 @@ func (s *server) showList(w http.ResponseWriter, r *http.Request, id string) {
 	}
 
 	var data = struct {
-		List  *List
 		Token string
+		List  *List
 	}{
-		List:  list,
 		Token: setCSRFCookie(w),
+		List:  list,
 	}
 	err = s.listTmpl.Execute(w, data)
 	if err != nil {
@@ -122,15 +122,16 @@ func (s *server) showList(w http.ResponseWriter, r *http.Request, id string) {
 func (s *server) createList(w http.ResponseWriter, r *http.Request) {
 	name := strings.TrimSpace(r.FormValue("name"))
 	if name == "" {
+		// Empty list name, just reload home page
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
-	list, err := s.model.CreateList(name)
+	listID, err := s.model.CreateList(name)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(w, r, "/"+list.ID, http.StatusFound)
+	http.Redirect(w, r, "/"+listID, http.StatusFound)
 }
 
 func (s *server) addItem(w http.ResponseWriter, r *http.Request) {
@@ -146,6 +147,7 @@ func (s *server) addItem(w http.ResponseWriter, r *http.Request) {
 	}
 	description := strings.TrimSpace(r.FormValue("description"))
 	if description == "" {
+		// Empty item description, just reload list
 		http.Redirect(w, r, "/"+list.ID, http.StatusFound)
 		return
 	}
