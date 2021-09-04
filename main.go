@@ -1,7 +1,5 @@
 // Tiny to-do list web app
 
-// TODO: simplify; comment; use sqlx?
-
 package main
 
 import (
