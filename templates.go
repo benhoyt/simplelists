@@ -74,17 +74,17 @@ var listTmpl = `<!DOCTYPE html>
   <ul style="list-style-type: none; margin: 0; padding: 0;">
    {{ range .List.Items }}
     <li style="margin: 0.7em 0">
-     <form style="display: inline;" action="/check-item" method="POST" enctype="application/x-www-form-urlencoded">
+     <form style="display: inline;" action="/update-done" method="POST" enctype="application/x-www-form-urlencoded">
       <input type="hidden" name="csrf-token" value="{{ $.Token }}">
       <input type="hidden" name="list-id" value="{{ $.List.ID }}">
       <input type="hidden" name="item-id" value="{{ .ID }}">
       {{ if .Done }}
-       <button id="check-{{ .ID }}" style="width: 1.7em">✓</button>
-       <label for="check-{{ .ID }}"><del>{{ .Description }}</del></label>
+       <button id="done-{{ .ID }}" style="width: 1.7em">✓</button>
+       <label for="done-{{ .ID }}"><del>{{ .Description }}</del></label>
       {{ else }}
        <input type="hidden" name="done" value="on">
-       <button id="check-{{ .ID }}" style="width: 1.7em">&nbsp;</button>
-       <label for="check-{{ .ID }}">{{ .Description }}</label>
+       <button id="done-{{ .ID }}" style="width: 1.7em">&nbsp;</button>
+       <label for="done-{{ .ID }}">{{ .Description }}</label>
       {{ end }}
      </form>
      <form style="display: inline;" action="/delete-item" method="POST" enctype="application/x-www-form-urlencoded">

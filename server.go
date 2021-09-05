@@ -76,7 +76,7 @@ func (s *Server) addRoutes() {
 	s.mux.HandleFunc("/create-list", s.ensureSignedIn(csrf(s.createList)))
 	s.mux.HandleFunc("/delete-list", s.ensureSignedIn(csrf(s.deleteList)))
 	s.mux.HandleFunc("/add-item", s.ensureSignedIn(csrf(s.addItem)))
-	s.mux.HandleFunc("/check-item", s.ensureSignedIn(csrf(s.checkItem)))
+	s.mux.HandleFunc("/update-done", s.ensureSignedIn(csrf(s.updateDone)))
 	s.mux.HandleFunc("/delete-item", s.ensureSignedIn(csrf(s.deleteItem)))
 }
 
@@ -267,7 +267,7 @@ func (s *Server) addItem(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/lists/"+list.ID, http.StatusFound)
 }
 
-func (s *Server) checkItem(w http.ResponseWriter, r *http.Request) {
+func (s *Server) updateDone(w http.ResponseWriter, r *http.Request) {
 	listID := r.FormValue("list-id")
 	itemID := r.FormValue("item-id")
 	done := r.FormValue("done") == "on"
