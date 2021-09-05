@@ -8,10 +8,28 @@ var homeTmpl = `<!DOCTYPE html>
  </head>
  <body>
   <h1>Simple Lists</h1>
+{{ if .ShowSignOut }}
+  <form style="margin: 1em 0" action="/sign-out" method="POST" enctype="application/x-www-form-urlencoded">
+   <input type="hidden" name="csrf-token" value="{{ $.Token }}">
+   <button>Sign Out</button>
+  </form>
+{{ end }}
+{{ if .ShowSignIn }}
+  <form style="margin: 1em 0" action="/sign-in" method="POST" enctype="application/x-www-form-urlencoded">
+   <input type="hidden" name="csrf-token" value="{{ $.Token }}">
+   <input type="hidden" name="return-url" value="{{ .ReturnURL }}">
+   <input type="text" name="username" placeholder="username" autofocus>
+   <input type="password" name="password" placeholder="password" autofocus>
+   <button>Sign In</button>
+   {{ if .SignInError }}
+   <div style="color: red; margin: 0.5em 0;">incorrect username or password</div>
+   {{ end }}
+  </form>
+{{ else }}
   <ul style="list-style-type: none; margin: 0; padding: 0;">
    {{ range .Lists }}
     <li style="margin: 0.7em 0">
-     <a href="/{{ .ID }}">{{ .Name }}</a>
+     <a href="/lists/{{ .ID }}">{{ .Name }}</a>
      <span style="color: gray; font-size: 75%; margin-left: 0.2em;" title="{{ .TimeCreated.Format "2006-01-02 15:04:05" }}">{{ .TimeCreated.Format "2 Jan" }}</span>
     </li>
    {{ end }}
@@ -23,6 +41,7 @@ var homeTmpl = `<!DOCTYPE html>
     </form>
    </li>
   </ul>
+{{ end }}
   <div style="margin: 5em 0; border-top: 1px solid #ccc; text-align: center;">
    <a style="color: gray; font-size: 75%" href="https://github.com/benhoyt/simplelists">About</a>
   </div>
