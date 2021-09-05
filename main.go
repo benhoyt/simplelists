@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 
 	_ "modernc.org/sqlite"
@@ -19,7 +20,6 @@ func main() {
 	port := flag.Int("port", 8080, "HTTP `port` to listen on")
 	showLists := flag.Bool("lists", false, "show lists on homepage")
 	username := flag.String("username", "", "optional username to access site")
-	passwordHash := flag.String("passhash", "", "hash of password to access site")
 	genPass := flag.Bool("genpass", false, "interactively generate password hash (don't run server)")
 	flag.Parse()
 
@@ -35,11 +35,13 @@ func main() {
 		return
 	}
 
+	var passwordHash string
 	if *username != "" {
-		if *passwordHash == "" {
-			log.Fatal("passhash must be set if username is set")
+		passwordHash = os.Getenv("SIMPLELISTS_PASSHASH")
+		if passwordHash == "" {
+			log.Fatal("SIMPLELISTS_PASSHASH must be set if username is set")
 		}
-		err := CheckPasswordHash(*passwordHash)
+		err := CheckPasswordHash(passwordHash)
 		exitOnError(err)
 	}
 
@@ -47,7 +49,7 @@ func main() {
 	exitOnError(err)
 	model, err := NewSQLModel(db)
 	exitOnError(err)
-	s, err := NewServer(model, *timezone, *username, *passwordHash, *showLists)
+	s, err := NewServer(model, *timezone, *username, passwordHash, *showLists)
 	exitOnError(err)
 
 	log.Printf("listening on port %d", *port)
