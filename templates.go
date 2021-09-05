@@ -38,11 +38,7 @@ var homeTmpl = `<!DOCTYPE html>
     <li style="margin: 0.7em 0">
      <a href="/lists/{{ .ID }}">{{ .Name }}</a>
      <span style="color: gray; font-size: 75%; margin-left: 0.2em;" title="{{ .TimeCreated.Format "2006-01-02 15:04:05" }}">{{ .TimeCreated.Format "2 Jan" }}</span>
-     <form id="delete-{{ .ID }}" style="display: inline;" action="/delete-list" method="POST" enctype="application/x-www-form-urlencoded">
-      <input type="hidden" name="csrf-token" value="{{ $.Token }}">
-      <input type="hidden" name="id" value="{{ .ID }}">
-      <button style="padding: 0 0.5em; border: none; background: none; color: #ccc" title="Delete List" onclick="event.preventDefault(); confirmDeleteList('delete-{{ .ID }}', '{{ .Name }}');">✕</button>
-     </form>
+     <a style="padding-left: 0.5em; color: #ccc;" href="/lists/{{ .ID }}?delete=1" title="Delete List">✕</a>
     </li>
    {{ end }}
   </ul>
@@ -51,14 +47,6 @@ var homeTmpl = `<!DOCTYPE html>
    <a style="color: gray; font-size: 75%" href="https://github.com/benhoyt/simplelists">About</a>
   </div>
  </body>
- <script>
-function confirmDeleteList(formId, listName) {
-  var answer = prompt('Are you sure you want to delete "' + listName + '"? If so, type YES in all caps.');
-  if (answer == "YES") {
-    document.getElementById(formId).submit();
-  }
-}
- </script>
 </html>
 `
 
@@ -70,6 +58,14 @@ var listTmpl = `<!DOCTYPE html>
  </head>
  <body>
   <h1>{{ .List.Name }}</h1>
+{{ if .ShowDelete }}
+ <form style="margin-bottom: 2em" action="/delete-list" method="POST" enctype="application/x-www-form-urlencoded">
+  <input type="hidden" name="csrf-token" value="{{ $.Token }}">
+  <input type="hidden" name="id" value="{{ .List.ID }}">
+  <span style="color: red">Are you sure you want to delete this list?</span>
+  <button>Yes, delete it!</button>
+ </form>
+{{ end }}
   <ul style="list-style-type: none; margin: 0; padding: 0;">
    {{ range .List.Items }}
     <li style="margin: 0.7em 0">

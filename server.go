@@ -201,11 +201,13 @@ func (s *server) showList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var data = struct {
-		Token string
-		List  *List
+		Token      string
+		List       *List
+		ShowDelete bool
 	}{
-		Token: setCSRFCookie(w),
-		List:  list,
+		Token:      setCSRFCookie(w),
+		List:       list,
+		ShowDelete: r.URL.Query().Get("delete") != "",
 	}
 	err = s.listTmpl.Execute(w, data)
 	if err != nil {
