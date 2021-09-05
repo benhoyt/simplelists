@@ -52,7 +52,7 @@ func main() {
 	s, err := NewServer(model, *timezone, *username, passwordHash, *showLists)
 	exitOnError(err)
 
-	log.Printf("listening on port %d", *port)
+	log.Printf("listening on http://localhost:%d", *port)
 	err = http.ListenAndServe(":"+strconv.Itoa(*port), s)
 	exitOnError(err)
 }
