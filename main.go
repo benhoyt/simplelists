@@ -29,7 +29,7 @@ func main() {
 			fmt.Printf("Enter password at least 6 characters long: ")
 			fmt.Scanln(&password)
 		}
-		hash, err := generatePasswordHash(password)
+		hash, err := GeneratePasswordHash(password)
 		exitOnError(err)
 		fmt.Println(hash)
 		return
@@ -39,15 +39,15 @@ func main() {
 		if *passwordHash == "" {
 			log.Fatal("passhash must be set if username is set")
 		}
-		err := checkPasswordHash(*passwordHash)
+		err := CheckPasswordHash(*passwordHash)
 		exitOnError(err)
 	}
 
 	db, err := sql.Open("sqlite", *dbPath)
 	exitOnError(err)
-	model, err := newSQLModel(db)
+	model, err := NewSQLModel(db)
 	exitOnError(err)
-	s, err := newServer(model, *timezone, *username, *passwordHash, *showLists)
+	s, err := NewServer(model, *timezone, *username, *passwordHash, *showLists)
 	exitOnError(err)
 
 	log.Printf("listening on port %d", *port)

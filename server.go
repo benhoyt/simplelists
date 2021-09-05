@@ -1,7 +1,9 @@
 package main
 
 import (
+	"crypto/rand"
 	"crypto/subtle"
+	"encoding/hex"
 	"errors"
 	"html/template"
 	"log"
@@ -13,8 +15,9 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type server struct {
-	model        *sqlModel
+// Server is the HTTP server for the to-do list app.
+type Server struct {
+	model        Model
 	location     *time.Location
 	username     string
 	passwordHash string
@@ -25,8 +28,20 @@ type server struct {
 	listTmpl *template.Template
 }
 
-func newServer(model *sqlModel, timezone, username, passwordHash string, showLists bool) (*server, error) {
-	location := time.Local
+// Model is the database model interface used by the server.
+type Model interface {
+	GetLists() ([]*List, error)
+	CreateList(name string) (string, error)
+	DeleteList(id string) error
+	GetList(id string) (*List, error)
+	AddItem(listID, description string) (string, error)
+	UpdateDone(listID, itemID string, done bool) error
+	DeleteItem(listID, itemID string) error
+}
+
+// NewServer creates a new server with the specified dependencies.
+func NewServer(model *SQLModel, timezone, username, passwordHash string, showLists bool) (*Server, error) {
+	location := time.Local // use server's local time if timezone not specified
 	if timezone != "" {
 		var err error
 		location, err = time.LoadLocation(timezone)
@@ -34,7 +49,7 @@ func newServer(model *sqlModel, timezone, username, passwordHash string, showLis
 			return nil, err
 		}
 	}
-	s := &server{
+	s := &Server{
 		mux:          http.NewServeMux(),
 		location:     location,
 		username:     username,
@@ -47,50 +62,7 @@ func newServer(model *sqlModel, timezone, username, passwordHash string, showLis
 	return s, nil
 }
 
-func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	startTime := time.Now()
-	w.Header().Set("Cache-Control", "no-cache")
-	s.mux.ServeHTTP(w, r)
-	log.Printf("%s %s %v", r.Method, r.URL.Path, time.Since(startTime))
-}
-
-func generatePasswordHash(password string) (string, error) {
-	b, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	return string(b), err
-}
-
-// checkPasswordHash returns a non-nil error if the given password hash is not
-// a valid bcrypt hash.
-func checkPasswordHash(passwordHash string) error {
-	err := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte("x"))
-	if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
-		return nil
-	}
-	return err
-}
-
-func (s *server) isSignedIn(r *http.Request) bool {
-	if s.username == "" {
-		return true
-	}
-	cookie, err := r.Cookie("sign-in")
-	if err != nil {
-		return false
-	}
-	return subtle.ConstantTimeCompare([]byte(cookie.Value), []byte(s.username+":"+s.passwordHash)) == 1
-}
-
-func (s *server) ensureSignedIn(h http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if !s.isSignedIn(r) {
-			http.Redirect(w, r, "/?return-url="+url.QueryEscape(r.URL.Path), http.StatusFound)
-			return
-		}
-		h(w, r)
-	}
-}
-
-func (s *server) addRoutes() {
+func (s *Server) addRoutes() {
 	s.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" { // because "/" pattern matches /*
 			s.home(w, r)
@@ -108,12 +80,41 @@ func (s *server) addRoutes() {
 	s.mux.HandleFunc("/delete-item", s.ensureSignedIn(csrfPost(s.deleteItem)))
 }
 
-func (s *server) addTemplates() {
+func (s *Server) ensureSignedIn(h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !s.isSignedIn(r) {
+			http.Redirect(w, r, "/?return-url="+url.QueryEscape(r.URL.Path), http.StatusFound)
+			return
+		}
+		h(w, r)
+	}
+}
+
+func (s *Server) isSignedIn(r *http.Request) bool {
+	if s.username == "" {
+		return true
+	}
+	cookie, err := r.Cookie("sign-in")
+	if err != nil {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(cookie.Value), []byte(s.username+":"+s.passwordHash)) == 1
+}
+
+func (s *Server) addTemplates() {
 	s.homeTmpl = template.Must(template.New("home").Parse(homeTmpl))
 	s.listTmpl = template.Must(template.New("list").Parse(listTmpl))
 }
 
-func (s *server) home(w http.ResponseWriter, r *http.Request) {
+// ServeHTTP implements the http.Handler interface.
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	startTime := time.Now()
+	w.Header().Set("Cache-Control", "no-cache")
+	s.mux.ServeHTTP(w, r)
+	log.Printf("%s %s %v", r.Method, r.URL.Path, time.Since(startTime))
+}
+
+func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 	var lists []*List
 	if s.showLists {
 		var err error
@@ -151,7 +152,7 @@ func (s *server) home(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *server) signIn(w http.ResponseWriter, r *http.Request) {
+func (s *Server) signIn(w http.ResponseWriter, r *http.Request) {
 	username := strings.TrimSpace(r.FormValue("username"))
 	password := r.FormValue("password")
 	returnURL := r.FormValue("return-url")
@@ -175,7 +176,7 @@ func (s *server) signIn(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, returnURL, http.StatusFound)
 }
 
-func (s *server) signOut(w http.ResponseWriter, r *http.Request) {
+func (s *Server) signOut(w http.ResponseWriter, r *http.Request) {
 	cookie := &http.Cookie{
 		Name:     "sign-in",
 		MaxAge:   -1,
@@ -188,7 +189,7 @@ func (s *server) signOut(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
-func (s *server) showList(w http.ResponseWriter, r *http.Request) {
+func (s *Server) showList(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Path[len("/lists/"):]
 	list, err := s.model.GetList(id)
 	if err != nil {
@@ -216,7 +217,7 @@ func (s *server) showList(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *server) createList(w http.ResponseWriter, r *http.Request) {
+func (s *Server) createList(w http.ResponseWriter, r *http.Request) {
 	name := strings.TrimSpace(r.FormValue("name"))
 	if name == "" {
 		// Empty list name, just reload home page
@@ -231,7 +232,7 @@ func (s *server) createList(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/lists/"+listID, http.StatusFound)
 }
 
-func (s *server) deleteList(w http.ResponseWriter, r *http.Request) {
+func (s *Server) deleteList(w http.ResponseWriter, r *http.Request) {
 	id := r.FormValue("id")
 	err := s.model.DeleteList(id)
 	if err != nil {
@@ -241,7 +242,7 @@ func (s *server) deleteList(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
-func (s *server) addItem(w http.ResponseWriter, r *http.Request) {
+func (s *Server) addItem(w http.ResponseWriter, r *http.Request) {
 	listID := r.FormValue("list-id")
 	list, err := s.model.GetList(listID)
 	if err != nil {
@@ -266,11 +267,11 @@ func (s *server) addItem(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/lists/"+list.ID, http.StatusFound)
 }
 
-func (s *server) checkItem(w http.ResponseWriter, r *http.Request) {
+func (s *Server) checkItem(w http.ResponseWriter, r *http.Request) {
 	listID := r.FormValue("list-id")
 	itemID := r.FormValue("item-id")
 	done := r.FormValue("done") == "on"
-	err := s.model.CheckItem(listID, itemID, done)
+	err := s.model.UpdateDone(listID, itemID, done)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -278,7 +279,7 @@ func (s *server) checkItem(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/lists/"+listID, http.StatusFound)
 }
 
-func (s *server) deleteItem(w http.ResponseWriter, r *http.Request) {
+func (s *Server) deleteItem(w http.ResponseWriter, r *http.Request) {
 	listID := r.FormValue("list-id")
 	itemID := r.FormValue("item-id")
 	err := s.model.DeleteItem(listID, itemID)
@@ -287,4 +288,65 @@ func (s *server) deleteItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/lists/"+listID, http.StatusFound)
+}
+
+// GeneratePasswordHash generates a bcrypt hash from the given password.
+func GeneratePasswordHash(password string) (string, error) {
+	b, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	return string(b), err
+}
+
+// CheckPasswordHash returns a non-nil error if the given password hash is not
+// a valid bcrypt hash.
+func CheckPasswordHash(passwordHash string) error {
+	err := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte("x"))
+	if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
+		return nil
+	}
+	return err
+}
+
+// csrfPost wraps the given handler, ensuring that the HTTP method is POST and
+// that the CSRF token in the "csrf-token" cookie matches the token in the
+// "csrf-token" form field.
+func csrfPost(h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			w.Header().Set("Allow", "POST")
+			http.Error(w, "405 method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		token := r.FormValue("csrf-token")
+		cookie, err := r.Cookie("csrf-token")
+		if err != nil || token != cookie.Value {
+			http.Error(w, "invalid CSRF token or cookie", http.StatusBadRequest)
+			return
+		}
+		h(w, r)
+	}
+}
+
+// setCSRFCookie generates a new CSRF token and sets the "csrf-token" cookie,
+// returning the new token.
+func setCSRFCookie(w http.ResponseWriter) string {
+	token := generateCSRFToken()
+	cookie := &http.Cookie{
+		Name:     "csrf-token",
+		Value:    token,
+		Path:     "/",
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
+	}
+	http.SetCookie(w, cookie)
+	return token
+}
+
+func generateCSRFToken() string {
+	b := make([]byte, 16)
+	_, err := rand.Read(b)
+	if err != nil { // should never fail
+		return ""
+	}
+	return hex.EncodeToString(b)
 }

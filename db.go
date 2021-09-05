@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+// List is a to-do list (along with its list items).
 type List struct {
 	ID          string
 	TimeCreated time.Time
@@ -14,20 +15,24 @@ type List struct {
 	Items       []*Item
 }
 
+// Item is a single to-do list item.
 type Item struct {
 	ID          string
 	Description string
 	Done        bool
 }
 
-type sqlModel struct {
+// SQLModel represents the database query model implemented with SQLite.
+type SQLModel struct {
 	db  *sql.DB
 	rnd *rand.Rand
 }
 
-func newSQLModel(db *sql.DB) (*sqlModel, error) {
+// NewSQLModel returns a new SQLite database model, creating tables if they
+// don't already exist.
+func NewSQLModel(db *sql.DB) (*SQLModel, error) {
 	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
-	model := &sqlModel{db, rnd}
+	model := &SQLModel{db, rnd}
 	_, err := model.db.Exec(`
 		CREATE TABLE IF NOT EXISTS lists (
 			id VARCHAR(10) NOT NULL PRIMARY KEY,
@@ -48,7 +53,9 @@ func newSQLModel(db *sql.DB) (*sqlModel, error) {
 	return model, err
 }
 
-func (m *sqlModel) GetLists() ([]*List, error) {
+// GetLists fetches all the to-do lists (without their items), ordered with
+// the most recent first.
+func (m *SQLModel) GetLists() ([]*List, error) {
 	rows, err := m.db.Query(`
 		SELECT id, name, time_created
 		FROM lists
@@ -71,24 +78,28 @@ func (m *sqlModel) GetLists() ([]*List, error) {
 	return lists, rows.Err()
 }
 
-var idChars = "bcdfghjklmnpqrstvwxyz" // just consonants to avoid spelling words
+var listIDChars = "bcdfghjklmnpqrstvwxyz" // just consonants to avoid spelling words
 
-func (m *sqlModel) makeID(n int) string {
+// makeListID creates a new randomized list ID.
+func (m *SQLModel) makeListID(n int) string {
 	id := make([]byte, n)
 	for i := 0; i < n; i++ {
-		index := m.rnd.Intn(len(idChars))
-		id[i] = idChars[index]
+		index := m.rnd.Intn(len(listIDChars))
+		id[i] = listIDChars[index]
 	}
 	return string(id)
 }
 
-func (m *sqlModel) CreateList(name string) (string, error) {
-	id := m.makeID(10)
+// CreateList creates a new list with the given name, returning its ID.
+func (m *SQLModel) CreateList(name string) (string, error) {
+	id := m.makeListID(10)
 	_, err := m.db.Exec("INSERT INTO lists (id, name) VALUES (?, ?)", id, name)
 	return id, err
 }
 
-func (m *sqlModel) DeleteList(id string) error {
+// DeleteList deletes the given list, along with all its items. It's not an
+// error if the list doesn't exist.
+func (m *SQLModel) DeleteList(id string) error {
 	tx, err := m.db.Begin()
 	if err != nil {
 		return err
@@ -106,7 +117,8 @@ func (m *sqlModel) DeleteList(id string) error {
 	return tx.Commit()
 }
 
-func (m *sqlModel) GetList(id string) (*List, error) {
+// GetList fetches a single list and returns the List, or nil if not found.
+func (m *SQLModel) GetList(id string) (*List, error) {
 	row := m.db.QueryRow("SELECT id, name FROM lists WHERE id = ?", id)
 	var list List
 	err := row.Scan(&list.ID, &list.Name)
@@ -117,7 +129,7 @@ func (m *sqlModel) GetList(id string) (*List, error) {
 	return &list, err
 }
 
-func (m *sqlModel) getListItems(listID string) ([]*Item, error) {
+func (m *SQLModel) getListItems(listID string) ([]*Item, error) {
 	rows, err := m.db.Query(`
 		SELECT id, description, done
 		FROM items
@@ -141,7 +153,9 @@ func (m *sqlModel) getListItems(listID string) ([]*Item, error) {
 	return items, rows.Err()
 }
 
-func (m *sqlModel) AddItem(listID, description string) (string, error) {
+// AddItem adds an item with the given description to a list, returning the
+// item ID.
+func (m *SQLModel) AddItem(listID, description string) (string, error) {
 	result, err := m.db.Exec("INSERT INTO items (list_id, description) VALUES (?, ?)",
 		listID, description)
 	if err != nil {
@@ -154,13 +168,15 @@ func (m *sqlModel) AddItem(listID, description string) (string, error) {
 	return strconv.Itoa(int(id)), nil
 }
 
-func (m *sqlModel) CheckItem(listID, itemID string, done bool) error {
+// UpdateDone updates the "done" flag of the given item in a list.
+func (m *SQLModel) UpdateDone(listID, itemID string, done bool) error {
 	_, err := m.db.Exec("UPDATE items SET done = ? WHERE list_id = ? AND id = ?",
 		done, listID, itemID)
 	return err
 }
 
-func (m *sqlModel) DeleteItem(listID, itemID string) error {
+// DeleteItem deletes the given item in a list.
+func (m *SQLModel) DeleteItem(listID, itemID string) error {
 	_, err := m.db.Exec("DELETE FROM items WHERE list_id = ? AND id = ?",
 		listID, itemID)
 	return err
