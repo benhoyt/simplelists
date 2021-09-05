@@ -52,7 +52,7 @@ func (m *sqlModel) GetLists() ([]*List, error) {
 	rows, err := m.db.Query(`
 		SELECT id, name, time_created
 		FROM lists
-		ORDER BY time_created
+		ORDER BY time_created DESC
 		`)
 	if err != nil {
 		return nil, err

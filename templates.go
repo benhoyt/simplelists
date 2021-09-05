@@ -27,19 +27,19 @@ var homeTmpl = `<!DOCTYPE html>
   </form>
 {{ else }}
   <ul style="list-style-type: none; margin: 0; padding: 0;">
+   <li style="margin: 1em 0">
+    <form action="/create-list" method="POST" enctype="application/x-www-form-urlencoded">
+     <input type="hidden" name="csrf-token" value="{{ $.Token }}">
+     <input type="text" name="name" placeholder="list name" autofocus>
+     <button>New List</button>
+    </form>
+   </li>
    {{ range .Lists }}
     <li style="margin: 0.7em 0">
      <a href="/lists/{{ .ID }}">{{ .Name }}</a>
      <span style="color: gray; font-size: 75%; margin-left: 0.2em;" title="{{ .TimeCreated.Format "2006-01-02 15:04:05" }}">{{ .TimeCreated.Format "2 Jan" }}</span>
     </li>
    {{ end }}
-   <li>
-    <form style="margin: 1em 0" action="/create-list" method="POST" enctype="application/x-www-form-urlencoded">
-     <input type="hidden" name="csrf-token" value="{{ $.Token }}">
-     <input type="text" name="name" placeholder="list name" autofocus>
-     <button>New List</button>
-    </form>
-   </li>
   </ul>
 {{ end }}
   <div style="margin: 5em 0; border-top: 1px solid #ccc; text-align: center;">
