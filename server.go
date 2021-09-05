@@ -102,6 +102,7 @@ func (s *server) addRoutes() {
 	s.mux.HandleFunc("/sign-out", s.ensureSignedIn(csrfPost(s.signOut)))
 	s.mux.HandleFunc("/lists/", s.ensureSignedIn(s.showList))
 	s.mux.HandleFunc("/create-list", s.ensureSignedIn(csrfPost(s.createList)))
+	s.mux.HandleFunc("/delete-list", s.ensureSignedIn(csrfPost(s.deleteList)))
 	s.mux.HandleFunc("/add-item", s.ensureSignedIn(csrfPost(s.addItem)))
 	s.mux.HandleFunc("/check-item", s.ensureSignedIn(csrfPost(s.checkItem)))
 	s.mux.HandleFunc("/delete-item", s.ensureSignedIn(csrfPost(s.deleteItem)))
@@ -226,6 +227,16 @@ func (s *server) createList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/lists/"+listID, http.StatusFound)
+}
+
+func (s *server) deleteList(w http.ResponseWriter, r *http.Request) {
+	id := r.FormValue("id")
+	err := s.model.DeleteList(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, "/", http.StatusFound)
 }
 
 func (s *server) addItem(w http.ResponseWriter, r *http.Request) {

@@ -84,19 +84,30 @@ func (m *sqlModel) makeID(n int) string {
 
 func (m *sqlModel) CreateList(name string) (string, error) {
 	id := m.makeID(10)
-	_, err := m.db.Exec(`
-		INSERT INTO lists (id, name)
-		VALUES (?, ?)
-		`, id, name)
+	_, err := m.db.Exec("INSERT INTO lists (id, name) VALUES (?, ?)", id, name)
 	return id, err
 }
 
+func (m *sqlModel) DeleteList(id string) error {
+	tx, err := m.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	_, err = tx.Exec("DELETE FROM items WHERE list_id = ?", id)
+	if err != nil {
+		return err
+	}
+	_, err = tx.Exec("DELETE FROM lists WHERE id = ?", id)
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
 func (m *sqlModel) GetList(id string) (*List, error) {
-	row := m.db.QueryRow(`
-		SELECT id, name
-		FROM lists
-		WHERE id = ?
-		`, id)
+	row := m.db.QueryRow("SELECT id, name FROM lists WHERE id = ?", id)
 	var list List
 	err := row.Scan(&list.ID, &list.Name)
 	if err != nil {
@@ -131,10 +142,8 @@ func (m *sqlModel) getListItems(listID string) ([]*Item, error) {
 }
 
 func (m *sqlModel) AddItem(listID, description string) (string, error) {
-	result, err := m.db.Exec(`
-		INSERT INTO items (list_id, description)
-		VALUES (?, ?)
-		`, listID, description)
+	result, err := m.db.Exec("INSERT INTO items (list_id, description) VALUES (?, ?)",
+		listID, description)
 	if err != nil {
 		return "", err
 	}
@@ -146,18 +155,13 @@ func (m *sqlModel) AddItem(listID, description string) (string, error) {
 }
 
 func (m *sqlModel) CheckItem(listID, itemID string, done bool) error {
-	_, err := m.db.Exec(`
-		UPDATE items
-		SET done = ?
-		WHERE list_id = ? AND id = ?
-		`, done, listID, itemID)
+	_, err := m.db.Exec("UPDATE items SET done = ? WHERE list_id = ? AND id = ?",
+		done, listID, itemID)
 	return err
 }
 
 func (m *sqlModel) DeleteItem(listID, itemID string) error {
-	_, err := m.db.Exec(`
-		DELETE FROM items
-		WHERE list_id = ? AND id = ?
-		`, listID, itemID)
+	_, err := m.db.Exec("DELETE FROM items WHERE list_id = ? AND id = ?",
+		listID, itemID)
 	return err
 }

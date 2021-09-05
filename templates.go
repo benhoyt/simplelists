@@ -38,6 +38,11 @@ var homeTmpl = `<!DOCTYPE html>
     <li style="margin: 0.7em 0">
      <a href="/lists/{{ .ID }}">{{ .Name }}</a>
      <span style="color: gray; font-size: 75%; margin-left: 0.2em;" title="{{ .TimeCreated.Format "2006-01-02 15:04:05" }}">{{ .TimeCreated.Format "2 Jan" }}</span>
+     <form id="delete-{{ .ID }}" style="display: inline;" action="/delete-list" method="POST" enctype="application/x-www-form-urlencoded">
+      <input type="hidden" name="csrf-token" value="{{ $.Token }}">
+      <input type="hidden" name="id" value="{{ .ID }}">
+      <button style="padding: 0 0.5em; border: none; background: none; color: #ccc" title="Delete List" onclick="event.preventDefault(); confirmDeleteList('delete-{{ .ID }}', '{{ .Name }}');">✕</button>
+     </form>
     </li>
    {{ end }}
   </ul>
@@ -46,6 +51,14 @@ var homeTmpl = `<!DOCTYPE html>
    <a style="color: gray; font-size: 75%" href="https://github.com/benhoyt/simplelists">About</a>
   </div>
  </body>
+ <script>
+function confirmDeleteList(formId, listName) {
+  var answer = prompt('Are you sure you want to delete "' + listName + '"? If so, type YES in all caps.');
+  if (answer == "YES") {
+    document.getElementById(formId).submit();
+  }
+}
+ </script>
 </html>
 `
 
@@ -77,7 +90,7 @@ var listTmpl = `<!DOCTYPE html>
       <input type="hidden" name="csrf-token" value="{{ $.Token }}">
       <input type="hidden" name="list-id" value="{{ $.List.ID }}">
       <input type="hidden" name="item-id" value="{{ .ID }}">
-      <button style="padding: 0 0.5em; border: none; background: none; color: #ccc" title="Remove">✕</button>
+      <button style="padding: 0 0.5em; border: none; background: none; color: #ccc" title="Delete Item">✕</button>
      </form>
     </li>
    {{ end }}
