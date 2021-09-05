@@ -70,14 +70,14 @@ func (s *Server) addRoutes() {
 			http.NotFound(w, r)
 		}
 	})
-	s.mux.HandleFunc("/sign-in", csrfPost(s.signIn))
-	s.mux.HandleFunc("/sign-out", s.ensureSignedIn(csrfPost(s.signOut)))
+	s.mux.HandleFunc("/sign-in", csrf(s.signIn))
+	s.mux.HandleFunc("/sign-out", s.ensureSignedIn(csrf(s.signOut)))
 	s.mux.HandleFunc("/lists/", s.ensureSignedIn(s.showList))
-	s.mux.HandleFunc("/create-list", s.ensureSignedIn(csrfPost(s.createList)))
-	s.mux.HandleFunc("/delete-list", s.ensureSignedIn(csrfPost(s.deleteList)))
-	s.mux.HandleFunc("/add-item", s.ensureSignedIn(csrfPost(s.addItem)))
-	s.mux.HandleFunc("/check-item", s.ensureSignedIn(csrfPost(s.checkItem)))
-	s.mux.HandleFunc("/delete-item", s.ensureSignedIn(csrfPost(s.deleteItem)))
+	s.mux.HandleFunc("/create-list", s.ensureSignedIn(csrf(s.createList)))
+	s.mux.HandleFunc("/delete-list", s.ensureSignedIn(csrf(s.deleteList)))
+	s.mux.HandleFunc("/add-item", s.ensureSignedIn(csrf(s.addItem)))
+	s.mux.HandleFunc("/check-item", s.ensureSignedIn(csrf(s.checkItem)))
+	s.mux.HandleFunc("/delete-item", s.ensureSignedIn(csrf(s.deleteItem)))
 }
 
 func (s *Server) ensureSignedIn(h http.HandlerFunc) http.HandlerFunc {
@@ -306,10 +306,10 @@ func CheckPasswordHash(passwordHash string) error {
 	return err
 }
 
-// csrfPost wraps the given handler, ensuring that the HTTP method is POST and
+// csrf wraps the given handler, ensuring that the HTTP method is POST and
 // that the CSRF token in the "csrf-token" cookie matches the token in the
 // "csrf-token" form field.
-func csrfPost(h http.HandlerFunc) http.HandlerFunc {
+func csrf(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			w.Header().Set("Allow", "POST")
