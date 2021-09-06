@@ -37,7 +37,8 @@ func NewSQLModel(db *sql.DB) (*SQLModel, error) {
 		CREATE TABLE IF NOT EXISTS lists (
 			id VARCHAR(10) NOT NULL PRIMARY KEY,
 			time_created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			name VARCHAR(255) NOT NULL
+			name VARCHAR(255) NOT NULL,
+		    time_deleted TIMESTAMP
 		);
 		
 		CREATE TABLE IF NOT EXISTS items (
@@ -45,7 +46,8 @@ func NewSQLModel(db *sql.DB) (*SQLModel, error) {
 			list_id INTEGER NOT NULL REFERENCES lists(id),
 			time_created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			description VARCHAR(255) NOT NULL,
-		    done BOOLEAN NOT NULL DEFAULT FALSE
+		    done BOOLEAN NOT NULL DEFAULT FALSE,
+		    time_deleted TIMESTAMP
 		);
 		
 		CREATE INDEX IF NOT EXISTS items_list_id ON items(list_id);
@@ -59,6 +61,7 @@ func (m *SQLModel) GetLists() ([]*List, error) {
 	rows, err := m.db.Query(`
 		SELECT id, name, time_created
 		FROM lists
+		WHERE time_deleted IS NULL
 		ORDER BY time_created DESC
 		`)
 	if err != nil {
@@ -97,29 +100,16 @@ func (m *SQLModel) CreateList(name string) (string, error) {
 	return id, err
 }
 
-// DeleteList deletes the given list, along with all its items. It's not an
-// error if the list doesn't exist.
+// DeleteList (soft) deletes the given list (its items actually remain
+// untouched). It's not an error if the list doesn't exist.
 func (m *SQLModel) DeleteList(id string) error {
-	tx, err := m.db.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	_, err = tx.Exec("DELETE FROM items WHERE list_id = ?", id)
-	if err != nil {
-		return err
-	}
-	_, err = tx.Exec("DELETE FROM lists WHERE id = ?", id)
-	if err != nil {
-		return err
-	}
-	return tx.Commit()
+	_, err := m.db.Exec("UPDATE lists SET time_deleted = CURRENT_TIMESTAMP WHERE id = ?", id)
+	return err
 }
 
 // GetList fetches a single list and returns the List, or nil if not found.
 func (m *SQLModel) GetList(id string) (*List, error) {
-	row := m.db.QueryRow("SELECT id, name FROM lists WHERE id = ?", id)
+	row := m.db.QueryRow("SELECT id, name FROM lists WHERE id = ? AND time_deleted IS NULL", id)
 	var list List
 	err := row.Scan(&list.ID, &list.Name)
 	if err != nil {
@@ -133,7 +123,7 @@ func (m *SQLModel) getListItems(listID string) ([]*Item, error) {
 	rows, err := m.db.Query(`
 		SELECT id, description, done
 		FROM items
-		WHERE list_id = ?
+		WHERE list_id = ? AND time_deleted IS NULL
 		ORDER BY time_created
 		`, listID)
 	if err != nil {
@@ -175,9 +165,12 @@ func (m *SQLModel) UpdateDone(listID, itemID string, done bool) error {
 	return err
 }
 
-// DeleteItem deletes the given item in a list.
+// DeleteItem (soft) deletes the given item in a list.
 func (m *SQLModel) DeleteItem(listID, itemID string) error {
-	_, err := m.db.Exec("DELETE FROM items WHERE list_id = ? AND id = ?",
-		listID, itemID)
+	_, err := m.db.Exec(`
+			UPDATE items
+			SET time_deleted = CURRENT_TIMESTAMP
+			WHERE list_id = ? AND id = ?
+		`, listID, itemID)
 	return err
 }
