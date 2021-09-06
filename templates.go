@@ -38,7 +38,7 @@ var homeTmpl = `<!DOCTYPE html>
     <li style="margin: 0.7em 0">
      <a href="/lists/{{ .ID }}">{{ .Name }}</a>
      <span style="color: gray; font-size: 75%; margin-left: 0.2em;" title="{{ .TimeCreated.Format "2006-01-02 15:04:05" }}">{{ .TimeCreated.Format "2 Jan" }}</span>
-     <a style="padding-left: 0.5em; color: #ccc;" href="/lists/{{ .ID }}?delete=1" title="Delete List">✕</a>
+     <a style="padding-left: 0.5em; color: #ccc; text-decoration: none;" href="/lists/{{ .ID }}?delete=1" title="Delete List">✕</a>
     </li>
    {{ end }}
   </ul>
