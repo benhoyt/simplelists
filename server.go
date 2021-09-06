@@ -138,7 +138,7 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 		ReturnURL   string
 		SignInError bool
 	}{
-		Token:       setCSRFCookie(w),
+		Token:       getCSRFToken(w, r),
 		Lists:       lists,
 		ShowSignIn:  !isSignedIn,
 		ShowSignOut: s.username != "" && isSignedIn,
@@ -206,7 +206,7 @@ func (s *Server) showList(w http.ResponseWriter, r *http.Request) {
 		List       *List
 		ShowDelete bool
 	}{
-		Token:      setCSRFCookie(w),
+		Token:      getCSRFToken(w, r),
 		List:       list,
 		ShowDelete: r.URL.Query().Get("delete") != "",
 	}
@@ -326,11 +326,15 @@ func csrf(h http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// setCSRFCookie generates a new CSRF token and sets the "csrf-token" cookie,
-// returning the new token.
-func setCSRFCookie(w http.ResponseWriter) string {
+// getCSRFToken returns the current session's CSRF token, generating a new one
+// and settings the "csrf-token" cookie if not present.
+func getCSRFToken(w http.ResponseWriter, r *http.Request) string {
+	cookie, err := r.Cookie("csrf-token")
+	if err == nil && cookie.Value != "" {
+		return cookie.Value
+	}
 	token := generateCSRFToken()
-	cookie := &http.Cookie{
+	cookie = &http.Cookie{
 		Name:     "csrf-token",
 		Value:    token,
 		Path:     "/",
