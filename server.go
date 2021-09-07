@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/rand"
-	"crypto/subtle"
 	"encoding/hex"
 	"errors"
 	"html/template"
@@ -34,9 +33,14 @@ type Model interface {
 	CreateList(name string) (string, error)
 	DeleteList(id string) error
 	GetList(id string) (*List, error)
+
 	AddItem(listID, description string) (string, error)
 	UpdateDone(listID, itemID string, done bool) error
 	DeleteItem(listID, itemID string) error
+
+	CreateSignIn() (string, error)
+	IsSignInValid(id string) (bool, error)
+	DeleteSignIn(id string) error
 }
 
 // Logger is the logger interface used by the server.
@@ -107,11 +111,16 @@ func (s *Server) isSignedIn(r *http.Request) bool {
 	if s.username == "" {
 		return true
 	}
+	valid, err := s.model.IsSignInValid(getSignInCookie(r))
+	return err == nil && valid
+}
+
+func getSignInCookie(r *http.Request) string {
 	cookie, err := r.Cookie("sign-in")
 	if err != nil {
-		return false
+		return ""
 	}
-	return subtle.ConstantTimeCompare([]byte(cookie.Value), []byte(s.username+":"+s.passwordHash)) == 1
+	return cookie.Value
 }
 
 func (s *Server) addTemplates() {
@@ -176,10 +185,15 @@ func (s *Server) signIn(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/?error=sign-in&return-url="+url.QueryEscape(returnURL), http.StatusFound)
 		return
 	}
+	id, err := s.model.CreateSignIn()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	cookie := &http.Cookie{
 		Name:     "sign-in",
-		Value:    s.username + ":" + s.passwordHash,
-		MaxAge:   365 * 24 * 60 * 60,
+		Value:    id,
+		MaxAge:   90 * 24 * 60 * 60,
 		Path:     "/",
 		Secure:   true,
 		HttpOnly: true,
@@ -199,6 +213,13 @@ func (s *Server) signOut(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteStrictMode,
 	}
 	http.SetCookie(w, cookie)
+
+	err := s.model.DeleteSignIn(getSignInCookie(r))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
@@ -363,7 +384,7 @@ func generateCSRFToken() string {
 	b := make([]byte, 16)
 	_, err := rand.Read(b)
 	if err != nil { // should never fail
-		return ""
+		panic(err)
 	}
 	return hex.EncodeToString(b)
 }
