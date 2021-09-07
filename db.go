@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/hex"
 	"math/rand"
 	"strconv"
 	"time"
@@ -51,6 +52,11 @@ func NewSQLModel(db *sql.DB) (*SQLModel, error) {
 		);
 		
 		CREATE INDEX IF NOT EXISTS items_list_id ON items(list_id);
+
+		CREATE TABLE IF NOT EXISTS sign_ins (
+		    id VARCHAR(64) NOT NULL PRIMARY KEY,
+			time_created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+		);
 		`)
 	return model, err
 }
@@ -81,6 +87,13 @@ func (m *SQLModel) GetLists() ([]*List, error) {
 	return lists, rows.Err()
 }
 
+// CreateList creates a new list with the given name, returning its ID.
+func (m *SQLModel) CreateList(name string) (string, error) {
+	id := m.makeListID(10)
+	_, err := m.db.Exec("INSERT INTO lists (id, name) VALUES (?, ?)", id, name)
+	return id, err
+}
+
 var listIDChars = "bcdfghjklmnpqrstvwxyz" // just consonants to avoid spelling words
 
 // makeListID creates a new randomized list ID.
@@ -91,13 +104,6 @@ func (m *SQLModel) makeListID(n int) string {
 		id[i] = listIDChars[index]
 	}
 	return string(id)
-}
-
-// CreateList creates a new list with the given name, returning its ID.
-func (m *SQLModel) CreateList(name string) (string, error) {
-	id := m.makeListID(10)
-	_, err := m.db.Exec("INSERT INTO lists (id, name) VALUES (?, ?)", id, name)
-	return id, err
 }
 
 // DeleteList (soft) deletes the given list (its items actually remain
@@ -172,5 +178,46 @@ func (m *SQLModel) DeleteItem(listID, itemID string) error {
 			SET time_deleted = CURRENT_TIMESTAMP
 			WHERE list_id = ? AND id = ?
 		`, listID, itemID)
+	return err
+}
+
+// CreateSignIn creates a new sign-in and returns its secure ID.
+func (m *SQLModel) CreateSignIn() (string, error) {
+	id := generateSignInToken()
+	_, err := m.db.Exec("INSERT INTO sign_ins (id) VALUES (?)", id)
+	return id, err
+}
+
+func generateSignInToken() string {
+	b := make([]byte, 32)
+	_, err := rand.Read(b)
+	if err != nil { // should never fail
+		panic(err)
+	}
+	return hex.EncodeToString(b)
+}
+
+// IsSignInValid reports whether the given sign-in ID is valid.
+func (m *SQLModel) IsSignInValid(id string) (bool, error) {
+	row := m.db.QueryRow(`
+		SELECT 1
+		FROM sign_ins
+		WHERE id = ? AND time_created > DATETIME('NOW', '-90 DAYS')
+		`, id)
+	var dummy int
+	err := row.Scan(&dummy)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// DeleteSignIn deletes the given sign-in. It's not an error if the sign-in
+// doesn't exist.
+func (m *SQLModel) DeleteSignIn(id string) error {
+	_, err := m.db.Exec("DELETE FROM sign_ins WHERE id = ?", id)
 	return err
 }

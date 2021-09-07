@@ -11,6 +11,7 @@ import (
 	"os"
 	"strconv"
 
+	"golang.org/x/term"
 	_ "modernc.org/sqlite"
 )
 
@@ -26,8 +27,11 @@ func main() {
 	if *genPass {
 		var password string
 		for len(password) < 6 {
-			fmt.Printf("Enter password at least 6 characters long: ")
-			fmt.Scanln(&password)
+			fmt.Printf("Enter password (at least 6 chars): ")
+			b, err := term.ReadPassword(int(os.Stdin.Fd()))
+			fmt.Println()
+			exitOnError(err)
+			password = string(b)
 		}
 		hash, err := GeneratePasswordHash(password)
 		exitOnError(err)
