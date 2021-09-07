@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"html/template"
-	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -18,6 +17,7 @@ import (
 // Server is the HTTP server for the to-do list app.
 type Server struct {
 	model        Model
+	logger       Logger
 	location     *time.Location
 	username     string
 	passwordHash string
@@ -39,8 +39,20 @@ type Model interface {
 	DeleteItem(listID, itemID string) error
 }
 
+// Logger is the logger interface used by the server.
+type Logger interface {
+	Printf(format string, v ...interface{})
+}
+
 // NewServer creates a new server with the specified dependencies.
-func NewServer(model *SQLModel, timezone, username, passwordHash string, showLists bool) (*Server, error) {
+func NewServer(
+	model Model,
+	logger Logger,
+	timezone string,
+	username string,
+	passwordHash string,
+	showLists bool,
+) (*Server, error) {
 	location := time.Local // use server's local time if timezone not specified
 	if timezone != "" {
 		var err error
@@ -50,12 +62,13 @@ func NewServer(model *SQLModel, timezone, username, passwordHash string, showLis
 		}
 	}
 	s := &Server{
-		mux:          http.NewServeMux(),
+		model:        model,
+		logger:       logger,
 		location:     location,
 		username:     username,
 		passwordHash: passwordHash,
 		showLists:    showLists,
-		model:        model,
+		mux:          http.NewServeMux(),
 	}
 	s.addRoutes()
 	s.addTemplates()
@@ -111,7 +124,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
 	w.Header().Set("Cache-Control", "no-cache")
 	s.mux.ServeHTTP(w, r)
-	log.Printf("%s %s %v", r.Method, r.URL.Path, time.Since(startTime))
+	s.logger.Printf("%s %s %v", r.Method, r.URL.Path, time.Since(startTime))
 }
 
 func (s *Server) home(w http.ResponseWriter, r *http.Request) {
