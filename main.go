@@ -16,9 +16,10 @@ import (
 )
 
 func main() {
+	defaultPort := 8080
 	dbPath := flag.String("db", "simplelists.sqlite", "`path` to SQLite 3 database")
 	timezone := flag.String("timezone", "", "IANA timezone `name` (default local)")
-	port := flag.Int("port", 8080, "HTTP `port` to listen on")
+	port := flag.Int("port", 0, fmt.Sprintf("HTTP `port` to listen on (default $PORT or %d)", defaultPort))
 	showLists := flag.Bool("lists", false, "show lists on homepage")
 	username := flag.String("username", "", "optional username to access site")
 	genPass := flag.Bool("genpass", false, "interactively generate password hash (don't run server)")
@@ -55,6 +56,14 @@ func main() {
 	exitOnError(err)
 	s, err := NewServer(model, log.Default(), *timezone, *username, passwordHash, *showLists)
 	exitOnError(err)
+
+	if *port == 0 {
+		port = &defaultPort
+		envPort, err := strconv.Atoi(os.Getenv("PORT"))
+		if err == nil {
+			port = &envPort
+		}
+	}
 
 	log.Printf("listening on http://localhost:%d", *port)
 	err = http.ListenAndServe(":"+strconv.Itoa(*port), s)
