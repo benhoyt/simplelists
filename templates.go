@@ -61,7 +61,7 @@ var listTmpl = `<!DOCTYPE html>
 {{ if .ShowDelete }}
  <form style="margin-bottom: 2em" action="/delete-list" method="POST" enctype="application/x-www-form-urlencoded">
   <input type="hidden" name="csrf-token" value="{{ $.Token }}">
-  <input type="hidden" name="id" value="{{ .List.ID }}">
+  <input type="hidden" name="list-id" value="{{ .List.ID }}">
   <span style="color: red">Are you sure you want to delete this list?</span>
   <button>Yes, delete it!</button>
  </form>

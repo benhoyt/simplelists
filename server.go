@@ -195,7 +195,7 @@ func (s *Server) signIn(w http.ResponseWriter, r *http.Request) {
 		Value:    id,
 		MaxAge:   90 * 24 * 60 * 60,
 		Path:     "/",
-		Secure:   true,
+		Secure:   r.URL.Scheme == "https",
 		HttpOnly: true,
 		SameSite: http.SameSiteStrictMode,
 	}
@@ -208,7 +208,7 @@ func (s *Server) signOut(w http.ResponseWriter, r *http.Request) {
 		Name:     "sign-in",
 		MaxAge:   -1,
 		Path:     "/",
-		Secure:   true,
+		Secure:   r.URL.Scheme == "https",
 		HttpOnly: true,
 		SameSite: http.SameSiteStrictMode,
 	}
@@ -267,7 +267,7 @@ func (s *Server) createList(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) deleteList(w http.ResponseWriter, r *http.Request) {
-	id := r.FormValue("id")
+	id := r.FormValue("list-id")
 	err := s.model.DeleteList(id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -372,7 +372,7 @@ func getCSRFToken(w http.ResponseWriter, r *http.Request) string {
 		Name:     "csrf-token",
 		Value:    token,
 		Path:     "/",
-		Secure:   true,
+		Secure:   r.URL.Scheme == "https",
 		HttpOnly: true,
 		SameSite: http.SameSiteStrictMode,
 	}

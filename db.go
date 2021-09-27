@@ -118,6 +118,9 @@ func (m *SQLModel) GetList(id string) (*List, error) {
 	row := m.db.QueryRow("SELECT id, name FROM lists WHERE id = ? AND time_deleted IS NULL", id)
 	var list List
 	err := row.Scan(&list.ID, &list.Name)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, err
 	}
