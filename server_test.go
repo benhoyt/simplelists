@@ -16,6 +16,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"golang.org/x/net/html"
 	_ "modernc.org/sqlite"
@@ -74,6 +75,7 @@ func TestSQLite(t *testing.T) {
 
 	// Create another list
 	{
+		time.Sleep(time.Millisecond) // wait at least 1ms to ensure time_created is newer
 		form := url.Values{}
 		form.Set("csrf-token", csrfToken)
 		form.Set("name", "Another List")
@@ -91,13 +93,13 @@ func TestSQLite(t *testing.T) {
 
 		links := parseLinks(t, recorder.Body.String())
 		ensureInt(t, len(links), 5) // 2 links per list (view + delete), 1 link for "About"
-		ensureString(t, links[0].Href, "/lists/"+listIDs[0])
-		ensureString(t, links[0].Text, "Shopping List")
-		ensureString(t, links[1].Href, "/lists/"+listIDs[0]+"?delete=1")
+		ensureString(t, links[0].Href, "/lists/"+listIDs[1])
+		ensureString(t, links[0].Text, "Another List")
+		ensureString(t, links[1].Href, "/lists/"+listIDs[1]+"?delete=1")
 		ensureString(t, links[1].Text, "✕")
-		ensureString(t, links[2].Href, "/lists/"+listIDs[1])
-		ensureString(t, links[2].Text, "Another List")
-		ensureString(t, links[3].Href, "/lists/"+listIDs[1]+"?delete=1")
+		ensureString(t, links[2].Href, "/lists/"+listIDs[0])
+		ensureString(t, links[2].Text, "Shopping List")
+		ensureString(t, links[3].Href, "/lists/"+listIDs[0]+"?delete=1")
 		ensureString(t, links[3].Text, "✕")
 		ensureString(t, links[4].Text, "About")
 	}

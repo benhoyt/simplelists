@@ -90,7 +90,10 @@ func (m *SQLModel) GetLists() ([]*List, error) {
 // CreateList creates a new list with the given name, returning its ID.
 func (m *SQLModel) CreateList(name string) (string, error) {
 	id := m.makeListID(10)
-	_, err := m.db.Exec("INSERT INTO lists (id, name) VALUES (?, ?)", id, name)
+	// Generate time here because SQLite's CURRENT_TIMESTAMP only returns seconds.
+	timeCreated := time.Now().In(time.UTC).Format(time.RFC3339Nano)
+	_, err := m.db.Exec("INSERT INTO lists (id, name, time_created) VALUES (?, ?, ?)",
+		id, name, timeCreated)
 	return id, err
 }
 
@@ -133,7 +136,7 @@ func (m *SQLModel) getListItems(listID string) ([]*Item, error) {
 		SELECT id, description, done
 		FROM items
 		WHERE list_id = ? AND time_deleted IS NULL
-		ORDER BY time_created
+		ORDER BY id
 		`, listID)
 	if err != nil {
 		return nil, err
