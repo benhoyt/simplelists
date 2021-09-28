@@ -1,4 +1,4 @@
-module simplelists
+module github.com/benhoyt/simplelists
 
 go 1.17
 

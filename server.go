@@ -88,19 +88,20 @@ func (s *Server) addRoutes() {
 		}
 	})
 	s.mux.HandleFunc("/sign-in", csrf(s.signIn))
-	s.mux.HandleFunc("/sign-out", s.ensureSignedIn(csrf(s.signOut)))
-	s.mux.HandleFunc("/lists/", s.ensureSignedIn(s.showList))
-	s.mux.HandleFunc("/create-list", s.ensureSignedIn(csrf(s.createList)))
-	s.mux.HandleFunc("/delete-list", s.ensureSignedIn(csrf(s.deleteList)))
-	s.mux.HandleFunc("/add-item", s.ensureSignedIn(csrf(s.addItem)))
-	s.mux.HandleFunc("/update-done", s.ensureSignedIn(csrf(s.updateDone)))
-	s.mux.HandleFunc("/delete-item", s.ensureSignedIn(csrf(s.deleteItem)))
+	s.mux.HandleFunc("/sign-out", s.signedIn(csrf(s.signOut)))
+	s.mux.HandleFunc("/lists/", s.signedIn(s.showList))
+	s.mux.HandleFunc("/create-list", s.signedIn(csrf(s.createList)))
+	s.mux.HandleFunc("/delete-list", s.signedIn(csrf(s.deleteList)))
+	s.mux.HandleFunc("/add-item", s.signedIn(csrf(s.addItem)))
+	s.mux.HandleFunc("/update-done", s.signedIn(csrf(s.updateDone)))
+	s.mux.HandleFunc("/delete-item", s.signedIn(csrf(s.deleteItem)))
 }
 
-func (s *Server) ensureSignedIn(h http.HandlerFunc) http.HandlerFunc {
+func (s *Server) signedIn(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !s.isSignedIn(r) {
-			http.Redirect(w, r, "/?return-url="+url.QueryEscape(r.URL.Path), http.StatusFound)
+			location := "/?return-url=" + url.QueryEscape(r.URL.Path)
+			http.Redirect(w, r, location, http.StatusFound)
 			return
 		}
 		h(w, r)
