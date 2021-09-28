@@ -12,7 +12,6 @@ import (
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -23,9 +22,7 @@ import (
 )
 
 func TestSQLite(t *testing.T) {
-	tempDir := t.TempDir()
-	dbPath := filepath.Join(tempDir, "db.sqlite")
-	db, err := sql.Open("sqlite", dbPath)
+	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		t.Fatalf("opening database: %v", err)
 	}
