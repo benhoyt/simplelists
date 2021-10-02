@@ -54,7 +54,7 @@ func main() {
 	exitOnError(err)
 	model, err := NewSQLModel(db)
 	exitOnError(err)
-	s, err := NewServer(model, log.Default(), *timezone, *username, passwordHash, *showLists)
+	server, err := NewServer(model, log.Default(), *timezone, *username, passwordHash, *showLists)
 	exitOnError(err)
 
 	if *port == 0 {
@@ -66,7 +66,7 @@ func main() {
 	}
 
 	log.Printf("listening on http://localhost:%d", *port)
-	err = http.ListenAndServe(":"+strconv.Itoa(*port), s)
+	err = http.ListenAndServe(":"+strconv.Itoa(*port), server)
 	exitOnError(err)
 }
 
