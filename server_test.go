@@ -26,6 +26,7 @@ func TestSQLite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("opening database: %v", err)
 	}
+	defer db.Close()
 	model, err := NewSQLModel(db)
 	if err != nil {
 		t.Fatalf("creating model: %v", err)
@@ -305,7 +306,6 @@ func serve(t *testing.T, server *Server, jar http.CookieJar, method, path string
 	for _, c := range jar.Cookies(r.URL) {
 		r.Header.Add("Cookie", c.Name+"="+c.Value)
 	}
-
 	recorder := httptest.NewRecorder()
 	server.ServeHTTP(recorder, r)
 	jar.SetCookies(r.URL, recorder.Result().Cookies())
