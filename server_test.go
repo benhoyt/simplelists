@@ -21,7 +21,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-func TestSQLite(t *testing.T) {
+func TestServer(t *testing.T) {
 	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		t.Fatalf("opening database: %v", err)
