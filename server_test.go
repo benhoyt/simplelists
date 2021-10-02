@@ -1,10 +1,5 @@
 package main
 
-/*
-TODO:
-- add sign-in and sign-out and auth tests
-*/
-
 import (
 	"database/sql"
 	"io"
