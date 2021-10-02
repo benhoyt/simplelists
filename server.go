@@ -183,7 +183,8 @@ func (s *Server) signIn(w http.ResponseWriter, r *http.Request) {
 		returnURL = "/"
 	}
 	if username != s.username || bcrypt.CompareHashAndPassword([]byte(s.passwordHash), []byte(password)) != nil {
-		http.Redirect(w, r, "/?error=sign-in&return-url="+url.QueryEscape(returnURL), http.StatusFound)
+		location := "/?error=sign-in&return-url=" + url.QueryEscape(returnURL)
+		http.Redirect(w, r, location, http.StatusFound)
 		return
 	}
 	id, err := s.model.CreateSignIn()
