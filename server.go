@@ -143,7 +143,7 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 		var err error
 		lists, err = s.model.GetLists()
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			s.internalError(w, "fetching lists", err)
 			return
 		}
 		for _, list := range lists {
@@ -170,7 +170,7 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 	}
 	err := s.homeTmpl.Execute(w, data)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		s.internalError(w, "rendering template", err)
 		return
 	}
 }
@@ -189,7 +189,7 @@ func (s *Server) signIn(w http.ResponseWriter, r *http.Request) {
 	}
 	id, err := s.model.CreateSignIn()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		s.internalError(w, "creating sign in", err)
 		return
 	}
 	cookie := &http.Cookie{
@@ -218,7 +218,7 @@ func (s *Server) signOut(w http.ResponseWriter, r *http.Request) {
 
 	err := s.model.DeleteSignIn(getSignInCookie(r))
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		s.internalError(w, "deleting sign in", err)
 		return
 	}
 
@@ -229,7 +229,7 @@ func (s *Server) showList(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Path[len("/lists/"):]
 	list, err := s.model.GetList(id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		s.internalError(w, "fetching list", err)
 		return
 	}
 	if list == nil {
@@ -248,7 +248,7 @@ func (s *Server) showList(w http.ResponseWriter, r *http.Request) {
 	}
 	err = s.listTmpl.Execute(w, data)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		s.internalError(w, "rendering template", err)
 		return
 	}
 }
@@ -262,7 +262,7 @@ func (s *Server) createList(w http.ResponseWriter, r *http.Request) {
 	}
 	listID, err := s.model.CreateList(name)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		s.internalError(w, "creating list", err)
 		return
 	}
 	http.Redirect(w, r, "/lists/"+listID, http.StatusFound)
@@ -272,7 +272,7 @@ func (s *Server) deleteList(w http.ResponseWriter, r *http.Request) {
 	id := r.FormValue("list-id")
 	err := s.model.DeleteList(id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		s.internalError(w, "deleting list", err)
 		return
 	}
 	http.Redirect(w, r, "/", http.StatusFound)
@@ -282,7 +282,7 @@ func (s *Server) addItem(w http.ResponseWriter, r *http.Request) {
 	listID := r.FormValue("list-id")
 	list, err := s.model.GetList(listID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		s.internalError(w, "fetching list", err)
 		return
 	}
 	if list == nil {
@@ -297,7 +297,7 @@ func (s *Server) addItem(w http.ResponseWriter, r *http.Request) {
 	}
 	_, err = s.model.AddItem(list.ID, description)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		s.internalError(w, "adding item", err)
 		return
 	}
 	http.Redirect(w, r, "/lists/"+list.ID, http.StatusFound)
@@ -309,7 +309,7 @@ func (s *Server) updateDone(w http.ResponseWriter, r *http.Request) {
 	done := r.FormValue("done") == "on"
 	err := s.model.UpdateDone(listID, itemID, done)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		s.internalError(w, "updating done flag", err)
 		return
 	}
 	http.Redirect(w, r, "/lists/"+listID, http.StatusFound)
@@ -320,10 +320,15 @@ func (s *Server) deleteItem(w http.ResponseWriter, r *http.Request) {
 	itemID := r.FormValue("item-id")
 	err := s.model.DeleteItem(listID, itemID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		s.internalError(w, "deleting item", err)
 		return
 	}
 	http.Redirect(w, r, "/lists/"+listID, http.StatusFound)
+}
+
+func (s *Server) internalError(w http.ResponseWriter, msg string, err error) {
+	s.logger.Printf("error %s: %v", msg, err)
+	http.Error(w, "error "+msg, http.StatusInternalServerError)
 }
 
 // GeneratePasswordHash generates a bcrypt hash from the given password.
