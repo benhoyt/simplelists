@@ -3,8 +3,8 @@
 app = "simplelists"
 
 [build]
-  builder = "paketobuildpacks/builder:base"
-  buildpacks = ["gcr.io/paketo-buildpacks/go"]
+  [build.args]
+    GO_VERSION = '1.25.3'
 
 [mounts]
   source = "simplelists_data"
